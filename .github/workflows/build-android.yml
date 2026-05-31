@@ -1,62 +1,61 @@
-30: Android APK bauen
+name: Android APK bauen
 
-ein:
-  drücken:
-    Zweige: [ haupt, Meister ]
-  Workflow_VersandWorkflow_Versand:
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
 
-Jobs:
-  Build-Android:
-    Name: APK erstellen
-    anläufe: Ubuntu-Neueste
+jobs:
+  build-android:
+    name: APK erstellen
+    runs-on: ubuntu-latest
 
-    Schritte:
-      - Name: Code Auschecken
-        Verwendet: Aktionen/checkout@v4
+    steps:
+      - name: Code auschecken
+        uses: actions/checkout@v4
 
-      - Name: Node.js 20 Antigen
-        Verwendet: Aktionen/setup-node@v4
-        Mit:
-          Knotenversion: '20'
+      - name: Node.js 20 einrichten
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
 
-      - Name: npm-Abhaengigkeit installieren
-        laufen: npm installieren
+      - name: npm-Abhaengigkeiten installieren
+        run: npm install
 
-      - Name: Bibliotheken nach www/js/vendor kopieren
-        laufen: |
+      - name: Bibliotheken nach www/js/vendor kopieren
+        run: |
           mkdir -p www/js/vendor
           cp node_modules/dexie/dist/dexie.js www/js/vendor/dexie.js
           cp node_modules/chart.js/dist/chart.umd.min.js www/js/vendor/chart.umd.min.js
           cp node_modules/jspdf/dist/jspdf.umd.min.js www/js/vendor/jspdf.umd.min.js
 
-      - Name: Java 17 Antigen
-        Verwendet: Aktionen/setup-java@v4
-        Mit:
-          Java-Version: '17'
-          Verbindung: 'Temurin'
+      - name: Java 17 einrichten
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
 
-      - Name: Android SDK Komponenten installieren
-        laufen: |
-          echo "y" | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "Plattform;android-34" "Build-Tools;34.0.0" "Plattform-Tools" || true
+      - name: Android SDK Komponenten installieren
+        run: |
+          echo "y" | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-34" "build-tools;34.0.0" "platform-tools" || true
 
-      - Name: Kondensator Android-Plattform hinzufuegen
-        laufen: npx cap Android Hinzufügen
+      - name: Capacitor Android-Plattform hinzufuegen
+        run: npx cap add android
 
-      - Name: Kondensatorsynchronisieren
-        laufen: npx cap synchronisieren Android
+      - name: Capacitor synchronisieren
+        run: npx cap sync android
 
-      - Name: Gradle Ausfuehrbar Machen
-        laufen: chmod +x android/gradlew
+      - name: Gradle ausfuehrbar machen
+        run: chmod +x android/gradlew
 
-      - Name: Debug-APK bauen
-        laufen: |
-          CD Android
+      - name: Debug-APK bauen
+        run: |
+          cd android
           ./gradlew assembleDebug --no-daemon --stacktrace
-      
 
-      - Name: APK als Artefakt hochladen
-        Verwendet: Aktionen/upload-artifact@v4
-        Mit:
-          Name: Fitness-App-Android-APK
-          Pfad: android/app/build/outputs/apk/debug/app-debug.apk
-          Aufbauphase: 30
+      - name: APK als Artefakt hochladen
+        uses: actions/upload-artifact@v4
+        with:
+          name: Fitness-App-Android-APK
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 30
