@@ -112,6 +112,14 @@ const ui = {
                         <label>Notizen zum Satz (Optional)</label>
                         <input type="text" id="train-notes" placeholder="z.B. Partnerhilfe, Schmerzen...">
                     </div>
+                    <div>
+                        <label>Vorsatz fürs nächste Mal</label>
+                        <select id="train-intensity-hint">
+                            <option value="">Beibehalten (Keine Änderung)</option>
+                            <option value="increase">📈 Gewicht / Wdh. steigern</option>
+                            <option value="decrease">📉 Gewicht / Wdh. verringern</option>
+                        </select>
+                    </div>
                 </div>
                 <button class="btn btn-primary" id="save-session-btn" style="width:100%; margin-top:15px;">Eintrag speichern</button>
             </div>
@@ -510,7 +518,20 @@ class FitnessApp {
             weightSlider.value = lastSession.weight;
             document.getElementById('train-sets').value = lastSession.count;
             document.getElementById('train-reps').value = lastSession.reps;
-            document.getElementById('last-session-data').textContent = `${lastSession.date}: ${lastSession.weight}kg | ${lastSession.count}x${lastSession.reps}`;
+            
+            let hintHtml = '';
+            if (lastSession.intensityHint === 'increase') {
+                hintHtml = `<div style="margin-top:5px; color: #ffaa00; font-weight: bold;">📈 Hinweis: Intensität beim nächsten Mal steigern!</div>`;
+            } else if (lastSession.intensityHint === 'decrease') {
+                hintHtml = `<div style="margin-top:5px; color: #00aaff; font-weight: bold;">📉 Hinweis: Intensität beim nächsten Mal verringern!</div>`;
+            }
+
+            let notesHtml = '';
+            if (lastSession.notes) {
+                notesHtml = `<div style="margin-top:5px; font-size: 0.85rem; font-style: italic; color: var(--text-sub);">Notiz: ${lastSession.notes}</div>`;
+            }
+
+            document.getElementById('last-session-data').innerHTML = `${lastSession.date}: <strong>${lastSession.weight}kg | ${lastSession.count}x${lastSession.reps}</strong>${hintHtml}${notesHtml}`;
             document.getElementById('last-session-info').style.display = 'block';
         } else {
             weightInput.value = device.weightMin;
@@ -532,6 +553,7 @@ class FitnessApp {
             count: parseInt(document.getElementById('train-sets').value),
             reps: parseInt(document.getElementById('train-reps').value),
             notes: document.getElementById('train-notes').value.trim(),
+            intensityHint: document.getElementById('train-intensity-hint') ? document.getElementById('train-intensity-hint').value : '',
             timestamp: Date.now()
         };
 
@@ -540,6 +562,9 @@ class FitnessApp {
         await db.sessions.add(entry);
         alert('Gespeichert!');
         document.getElementById('train-notes').value = ''; // Input leeren
+        if (document.getElementById('train-intensity-hint')) {
+            document.getElementById('train-intensity-hint').value = '';
+        }
         this.renderTodayEntries();
     }
 
