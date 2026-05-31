@@ -1,0 +1,17 @@
+{
+  "appId": "de.jenaplan.fitness",
+  "appName": "Fitness",
+  "webDir": "www",
+  "android": {
+    "allowMixedContent": false,
+    "captureInput": true,
+    "webContentsDebuggingEnabled": false
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 2000,
+      "backgroundColor": "#121212",
+      "showSpinner": false
+    }
+  }
+}
