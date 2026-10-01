@@ -4,6 +4,11 @@ on:
   push:
     branches: [ main, master ]
   workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Grund fuer den Build'
+        required: false
+        default: 'Manueller Build'
 
 jobs:
   build-android:
@@ -11,51 +16,84 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # 1. Code laden
       - name: Code auschecken
         uses: actions/checkout@v4
 
+      # 2. Node.js einrichten
       - name: Node.js 20 einrichten
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
+      # 3. npm-Pakete installieren (Capacitor + Bibliotheken)
       - name: npm-Abhaengigkeiten installieren
         run: npm install
 
+      # 4. Bibliotheken lokal in www/js/vendor/ kopieren
       - name: Bibliotheken nach www/js/vendor kopieren
         run: |
           mkdir -p www/js/vendor
           cp node_modules/dexie/dist/dexie.js www/js/vendor/dexie.js
           cp node_modules/chart.js/dist/chart.umd.min.js www/js/vendor/chart.umd.min.js
           cp node_modules/jspdf/dist/jspdf.umd.min.js www/js/vendor/jspdf.umd.min.js
+          echo "Bibliotheken erfolgreich kopiert:"
+          ls -lh www/js/vendor/
 
-      - name: Java 17 einrichten
+      # 5. Java 17 einrichten (benoetigt fuer Android-Build)
+      - name: Java 17 (Temurin) einrichten
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
 
+      # 6. Android SDK sicherstellen
       - name: Android SDK Komponenten installieren
         run: |
-          echo "y" | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-34" "build-tools;34.0.0" "platform-tools" || true
+          echo "y" | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager \
+            "platforms;android-34" \
+            "build-tools;34.0.0" \
+            "platform-tools" || true
+          echo "Android SDK bereit."
 
+      # 7. Android-Plattform zu Capacitor hinzufuegen
       - name: Capacitor Android-Plattform hinzufuegen
         run: npx cap add android
 
+      # 8. Web-Assets in Android-Projekt synchronisieren
       - name: Capacitor synchronisieren
         run: npx cap sync android
 
+      # 9. Ausfuehrungsrechte fuer Gradle setzen
       - name: Gradle ausfuehrbar machen
         run: chmod +x android/gradlew
 
+      # 10. Debug-APK bauen
       - name: Debug-APK bauen
         run: |
           cd android
           ./gradlew assembleDebug --no-daemon --stacktrace
+        env:
+          ANDROID_HOME: ${{ env.ANDROID_HOME }}
 
+      # 11. APK als Download-Artefakt bereitstellen (30 Tage verfuegbar)
       - name: APK als Artefakt hochladen
         uses: actions/upload-artifact@v4
         with:
           name: Fitness-App-Android-APK
           path: android/app/build/outputs/apk/debug/app-debug.apk
           retention-days: 30
+
+      # 12. Zusammenfassung ausgeben
+      - name: Build-Zusammenfassung
+        run: |
+          APK_PATH="android/app/build/outputs/apk/debug/app-debug.apk"
+          if [ -f "$APK_PATH" ]; then
+            SIZE=$(du -sh "$APK_PATH" | cut -f1)
+            echo "✅ APK erfolgreich erstellt!"
+            echo "   Groesse: $SIZE"
+            echo "   → Jetzt im Tab 'Actions' unter 'Artifacts' herunterladen"
+          else
+            echo "❌ APK wurde nicht gefunden!"
+            exit 1
+          fi
