@@ -59,6 +59,7 @@ const ui = {
     async renderAdmin() {
         const rawDevices = await db.devices.toArray();
         const devices = rawDevices.sort((a, b) => (a.number || '').localeCompare((b.number || ''), undefined, {numeric: true}));
+        const sessionCount = await db.sessions.count();
         this.pages.admin.innerHTML = `
             <div class="title-row">
                 <h2>Geräte-Verwaltung</h2>
@@ -68,7 +69,7 @@ const ui = {
                 ${devices.map(d => `
                     <div class="card device-card">
                         <div style="display:flex; gap:15px; align-items:center;">
-                            ${d.photo ? `<img src="${d.photo}" style="width:60px; height:60px; border-radius:8px; object-fit:cover;">` : '<div style="width:60px; height:60px; background:#2a2a2a; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:1.5rem;">🏋️</div>'}
+                            ${d.photo ? `<img src="${d.photo}" style="width:60px; height:60px; border-radius:8px; object-fit:cover;">` : '<div style="width:60px; height:60px; background:var(--surface-light); border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:1.5rem;">🏋️</div>'}
                             <div style="flex-grow:1;">
                                 <h3 style="margin-bottom:2px;">${d.name} ${d.number ? `<span style="color:var(--text-sub); font-size:0.9rem;">(#${d.number})</span>` : ''}</h3>
                                 ${d.notes ? `<p style="font-size:0.85rem; padding-top:2px; color:var(--text-sub); font-style:italic;">${d.notes}</p>` : ''}
@@ -79,7 +80,41 @@ const ui = {
                     </div>
                 `).join('') || '<div class="card"><p style="color:var(--text-sub);">Noch keine Geräte vorhanden. Klicken Sie oben auf "+ Neues Gerät".</p></div>'}
             </div>
-            <div class="card" style="margin-top:40px; border-color:var(--danger); background:rgba(207,102,121,0.05);">
+
+            <!-- Datensicherung & Export -->
+            <div class="card" style="margin-top:25px;">
+                <div class="title-row" style="margin-bottom:10px;">
+                    <h3 style="display:flex; align-items:center; gap:8px;"><span>🛡️</span> Datensicherung & Export</h3>
+                    <span class="badge badge-primary">${devices.length} Geräte | ${sessionCount} Trainings</span>
+                </div>
+                <p style="font-size:0.88rem; color:var(--text-sub); margin-bottom:16px;">
+                    Sichern Sie alle Geräte- und Fitnessdaten zur Sicherheit als lokale Datei auf Ihrem PC oder Mobilgerät.
+                </p>
+                <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap:10px; margin-bottom:16px;">
+                    <button class="btn btn-primary" id="export-json-backup-btn" title="Vollständiges Backup aller Geräte und Trainingsdaten">
+                        <span>📦</span> Komplett-Backup (.json)
+                    </button>
+                    <button class="btn btn-secondary" id="export-sessions-csv-btn" title="Alle Trainingsergebnisse als Excel/CSV Tabelle">
+                        <span>📊</span> Trainingsdaten (.csv)
+                    </button>
+                    <button class="btn btn-secondary" id="export-devices-csv-btn" title="Geräteliste als Excel/CSV Tabelle">
+                        <span>📋</span> Geräteliste (.csv)
+                    </button>
+                </div>
+
+                <div style="border-top: 1px solid var(--border-subtle); padding-top:14px; margin-top:14px;">
+                    <h4 style="font-size:0.95rem; margin-bottom:6px;">📥 Backup wiederherstellen</h4>
+                    <p style="font-size:0.83rem; color:var(--text-sub); margin-bottom:12px;">
+                        Stellen Sie eine zuvor gesicherte JSON-Datei wieder her (z. B. nach Neuinstallation oder Gerätewechsel).
+                    </p>
+                    <input type="file" id="import-backup-file-input" accept=".json" style="display:none;">
+                    <button class="btn btn-secondary btn-sm" id="trigger-import-backup-btn">
+                        <span>📂</span> Backup-Datei auswählen & importieren
+                    </button>
+                </div>
+            </div>
+
+            <div class="card" style="margin-top:25px; border-color:var(--danger); background:rgba(207,102,121,0.05);">
                 <h3 style="color:var(--danger); margin-bottom:10px;">Gefahrenzone</h3>
                 <p style="font-size:0.85rem; margin-bottom:15px;">Hier können alle Trainingsdaten gelöscht werden. Die Geräte bleiben erhalten.</p>
                 <button class="btn btn-secondary text-danger" id="clear-history-btn" style="color:var(--danger); border:1px solid var(--danger);">Alle Trainingseinheiten löschen</button>
@@ -258,54 +293,21 @@ class FitnessApp {
             weight: null,
             volume: null
         };
-        this.deferredPrompt = null;
         this.currentDevice = null;
         this.currentLastSession = null;
         this.init();
     }
 
     init() {
-        // Install banner logic for standard browsers (Chrome, Edge, etc.)
-        window.addEventListener('beforeinstallprompt', (e) => {
-            e.preventDefault();
-            this.deferredPrompt = e;
-            const banner = document.getElementById('install-banner');
-            const installBtn = document.getElementById('install-app-btn');
-            if (banner && installBtn) {
-                banner.style.display = 'block';
-                installBtn.style.display = 'inline-block';
-            }
-        });
-
-        // Install banner logic for iOS devices
-        const isIos = () => {
-            const userAgent = window.navigator.userAgent.toLowerCase();
-            return /iphone|ipad|ipod/.test(userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-        };
-        const isInStandaloneMode = () => ('standalone' in window.navigator) && (window.navigator.standalone);
-
-        if (isIos() && !isInStandaloneMode()) {
-            const banner = document.getElementById('install-banner');
-            const iosInstruction = document.getElementById('ios-install-instruction');
-            if (banner && iosInstruction) {
-                banner.style.display = 'block';
-                iosInstruction.style.display = 'block';
-            }
-        }
-
+        this.initTheme();
         this.requestPersistentStorage();
 
         // Click Event Delegation
         document.addEventListener('click', async (e) => {
-            const installBtn = e.target.closest('#install-app-btn');
-            if (installBtn && this.deferredPrompt) {
-                this.deferredPrompt.prompt();
-                const { outcome } = await this.deferredPrompt.userChoice;
-                if (outcome === 'accepted') {
-                    const banner = document.getElementById('install-banner');
-                    if (banner) banner.style.display = 'none';
-                }
-                this.deferredPrompt = null;
+            // Theme Toggle
+            const themeBtn = e.target.closest('#theme-toggle-btn');
+            if (themeBtn) {
+                this.toggleTheme();
                 return;
             }
 
@@ -338,6 +340,31 @@ class FitnessApp {
             const deleteSessionBtn = e.target.closest('.delete-session');
             if (deleteSessionBtn) {
                 this.deleteSession(deleteSessionBtn.dataset.id);
+                return;
+            }
+
+            // Admin: Datensicherung & Export
+            const jsonBackupBtn = e.target.closest('#export-json-backup-btn');
+            if (jsonBackupBtn) {
+                this.exportFullBackup();
+                return;
+            }
+
+            const sessionsCsvBtn = e.target.closest('#export-sessions-csv-btn');
+            if (sessionsCsvBtn) {
+                this.exportSessionsCSV();
+                return;
+            }
+
+            const devicesCsvBtn = e.target.closest('#export-devices-csv-btn');
+            if (devicesCsvBtn) {
+                this.exportDevicesCSV();
+                return;
+            }
+
+            const triggerImportBtn = e.target.closest('#trigger-import-backup-btn');
+            if (triggerImportBtn) {
+                document.getElementById('import-backup-file-input')?.click();
                 return;
             }
             
@@ -420,6 +447,13 @@ class FitnessApp {
             if (e.target.id === 'stats-device-select') this.handleStatsDeviceChange(e.target.value);
             if (e.target.id === 'overview-date') this.handleOverviewChange(e.target.value);
             if (e.target.id === 'training-date') this.renderTodayEntries();
+            if (e.target.id === 'import-backup-file-input') {
+                const file = e.target.files && e.target.files[0];
+                if (file) {
+                    this.importFullBackup(file);
+                    e.target.value = '';
+                }
+            }
         });
 
         // Modal Close
@@ -1019,25 +1053,30 @@ class FitnessApp {
         const ctx2 = document.getElementById('stats-chart-volume');
         if (!ctx1 || !ctx2) return;
 
+        const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+        const gridColor = isLight ? '#cbd5e1' : '#2a2a2a';
+        const tickColor = isLight ? '#475569' : '#a0a0a0';
+        const labelColor = isLight ? '#1f2937' : '#e0e0e0';
+
         const chartOptions = {
             responsive: true,
             maintainAspectRatio: false,
             scales: {
                 y: { 
                     beginAtZero: false, 
-                    grid: { color: '#2a2a2a' }, 
-                    ticks: { color: '#a0a0a0', font: { size: 11 } } 
+                    grid: { color: gridColor }, 
+                    ticks: { color: tickColor, font: { size: 11 } } 
                 },
                 x: { 
                     grid: { display: false }, 
-                    ticks: { color: '#a0a0a0', font: { size: 11 } } 
+                    ticks: { color: tickColor, font: { size: 11 } } 
                 }
             },
             plugins: { 
                 legend: { 
                     display: true, 
                     position: 'top',
-                    labels: { color: '#e0e0e0', font: { size: 12 }, boxWidth: 14 } 
+                    labels: { color: labelColor, font: { size: 12 }, boxWidth: 14 } 
                 } 
             }
         };
@@ -1051,22 +1090,22 @@ class FitnessApp {
                     { 
                         label: 'Anfangsgewicht (kg)', 
                         data: startWeights, 
-                        borderColor: '#00aaff', 
-                        backgroundColor: 'rgba(0,170,255,0.15)', 
+                        borderColor: isLight ? '#0284c7' : '#00aaff', 
+                        backgroundColor: isLight ? 'rgba(2,132,199,0.15)' : 'rgba(0,170,255,0.15)', 
                         fill: false, 
                         tension: 0.25,
                         pointRadius: 4,
-                        pointBackgroundColor: '#00aaff'
+                        pointBackgroundColor: isLight ? '#0284c7' : '#00aaff'
                     },
                     { 
                         label: 'Maximalgewicht (kg)', 
                         data: maxWeights, 
-                        borderColor: '#03dac6', 
-                        backgroundColor: 'rgba(3,218,198,0.15)', 
+                        borderColor: isLight ? '#10b981' : '#03dac6', 
+                        backgroundColor: isLight ? 'rgba(16,185,129,0.15)' : 'rgba(3,218,198,0.15)', 
                         fill: false, 
                         tension: 0.25,
                         pointRadius: 4,
-                        pointBackgroundColor: '#03dac6'
+                        pointBackgroundColor: isLight ? '#10b981' : '#03dac6'
                     }
                 ]
             },
@@ -1081,8 +1120,8 @@ class FitnessApp {
                 datasets: [{ 
                     label: 'Steigerung / Zuwachs (kg)', 
                     data: increasesDelta, 
-                    backgroundColor: 'rgba(255, 183, 77, 0.7)',
-                    borderColor: '#ffb74d',
+                    backgroundColor: isLight ? 'rgba(245, 158, 11, 0.75)' : 'rgba(255, 183, 77, 0.7)',
+                    borderColor: isLight ? '#d97706' : '#ffb74d',
                     borderWidth: 1,
                     borderRadius: 4
                 }]
@@ -1093,12 +1132,172 @@ class FitnessApp {
                     ...chartOptions.scales,
                     y: {
                         beginAtZero: true,
-                        grid: { color: '#2a2a2a' },
-                        ticks: { color: '#a0a0a0', stepSize: 2.5 }
+                        grid: { color: gridColor },
+                        ticks: { color: tickColor, stepSize: 2.5 }
                     }
                 }
             }
         });
+    }
+
+    // --- Theme Switching ---
+    initTheme() {
+        const saved = localStorage.getItem('fitness_theme') || 'dark';
+        document.documentElement.setAttribute('data-theme', saved);
+        this.updateThemeButton();
+    }
+
+    toggleTheme() {
+        const current = document.documentElement.getAttribute('data-theme') || 'dark';
+        const next = current === 'light' ? 'dark' : 'light';
+        document.documentElement.setAttribute('data-theme', next);
+        localStorage.setItem('fitness_theme', next);
+        this.updateThemeButton();
+        if (this.activePage === 'stats' && this.currentDevice) {
+            this.handleStatsDeviceChange(this.currentDevice.id);
+        }
+        showToast(next === 'light' ? 'Helles Design aktiviert ☀️' : 'Dunkles Design aktiviert 🌙');
+    }
+
+    updateThemeButton() {
+        const theme = document.documentElement.getAttribute('data-theme') || 'dark';
+        const iconEl = document.getElementById('theme-icon');
+        const btn = document.getElementById('theme-toggle-btn');
+        if (iconEl) {
+            iconEl.textContent = theme === 'light' ? '🌙' : '☀️';
+        }
+        if (btn) {
+            btn.title = theme === 'light' ? 'Zu dunklem Design wechseln' : 'Zu hellem Design wechseln';
+        }
+    }
+
+    // --- Data Security & Export / Import ---
+    async exportFullBackup() {
+        const devices = await db.devices.toArray();
+        const sessions = await db.sessions.toArray();
+
+        const backupData = {
+            version: 1,
+            appName: 'Fitness App',
+            exportDate: new Date().toISOString(),
+            exportDateFormatted: new Date().toLocaleString('de-DE'),
+            stats: {
+                deviceCount: devices.length,
+                sessionCount: sessions.length
+            },
+            devices,
+            sessions
+        };
+
+        const jsonStr = JSON.stringify(backupData, null, 2);
+        const blob = new Blob([jsonStr], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        const now = new Date();
+        const dateStr = now.toISOString().split('T')[0];
+        const timeStr = String(now.getHours()).padStart(2, '0') + '-' + String(now.getMinutes()).padStart(2, '0');
+        a.href = url;
+        a.download = `fitness_backup_${dateStr}_${timeStr}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        showToast(`Komplett-Backup exportiert! (${devices.length} Geräte, ${sessions.length} Trainings) 📦`);
+    }
+
+    async exportSessionsCSV() {
+        const sessions = await db.sessions.toArray();
+        const devices = await db.devices.toArray();
+        const devMap = Object.fromEntries(devices.map(d => [d.id, d]));
+
+        // German Excel CSV format: Semicolon separated, UTF-8 BOM
+        let csv = '\uFEFF';
+        csv += 'Datum;Gerätenummer;Gerätename;Anfangsgewicht (kg);Steigerungen (kg);Maximalgewicht (kg);Sätze;Wiederholungen;Notizen;Erfasst am\r\n';
+
+        sessions.sort((a,b) => (b.date || '').localeCompare(a.date || '')).forEach(s => {
+            const dev = devMap[s.deviceId] || {};
+            const devNum = (dev.number || '').replace(/;/g, ' ');
+            const devName = (dev.name || 'Unbekannt').replace(/;/g, ' ');
+            const weightStr = (s.weight != null ? s.weight.toString().replace('.', ',') : '');
+            const hasInc = s.increases && Array.isArray(s.increases) && s.increases.length > 0;
+            const incStr = hasInc ? s.increases.map(w => w.toString().replace('.', ',')).join('; ') : '';
+            const maxW = s.maxWeight != null ? s.maxWeight : (hasInc ? Math.max(s.weight, ...s.increases) : s.weight);
+            const maxWeightStr = (maxW != null ? maxW.toString().replace('.', ',') : weightStr);
+            const count = s.count != null ? s.count : '';
+            const reps = s.reps != null ? s.reps : '';
+            const notes = (s.notes || '').replace(/[\r\n]+/g, ' ').replace(/;/g, ' ');
+            const timestamp = s.timestamp ? new Date(s.timestamp).toLocaleString('de-DE') : '';
+
+            csv += `"${s.date || ''}";"${devNum}";"${devName}";"${weightStr}";"${incStr}";"${maxWeightStr}";"${count}";"${reps}";"${notes}";"${timestamp}"\r\n`;
+        });
+
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        const dateStr = new Date().toISOString().split('T')[0];
+        a.href = url;
+        a.download = `fitness_trainingsdaten_${dateStr}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+        showToast('Trainingsdaten als CSV exportiert! 📊');
+    }
+
+    async exportDevicesCSV() {
+        const devices = await db.devices.toArray();
+        devices.sort((a, b) => (a.number || '').localeCompare((b.number || ''), undefined, {numeric: true}));
+
+        let csv = '\uFEFF';
+        csv += 'ID;Gerätenummer;Gerätename;Standardgewicht (kg);Schrittweite (kg);Notizen\r\n';
+
+        devices.forEach(d => {
+            const id = d.id || '';
+            const num = (d.number || '').replace(/;/g, ' ');
+            const name = (d.name || '').replace(/;/g, ' ');
+            const defW = (d.defaultWeight != null ? d.defaultWeight.toString().replace('.', ',') : '');
+            const step = (d.step != null ? d.step.toString().replace('.', ',') : '');
+            const notes = (d.notes || '').replace(/[\r\n]+/g, ' ').replace(/;/g, ' ');
+
+            csv += `"${id}";"${num}";"${name}";"${defW}";"${step}";"${notes}"\r\n`;
+        });
+
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        const dateStr = new Date().toISOString().split('T')[0];
+        a.href = url;
+        a.download = `fitness_geraeteliste_${dateStr}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+        showToast('Geräteliste als CSV exportiert! 📋');
+    }
+
+    async importFullBackup(file) {
+        if (!file) return;
+        try {
+            const text = await file.text();
+            const data = JSON.parse(text);
+            if (!data || (!Array.isArray(data.devices) && !Array.isArray(data.sessions))) {
+                alert('Ungültige Backup-Datei! Die Datei muss ein gültiges Geräte- oder Trainings-Backup sein.');
+                return;
+            }
+
+            const devCount = Array.isArray(data.devices) ? data.devices.length : 0;
+            const sessCount = Array.isArray(data.sessions) ? data.sessions.length : 0;
+
+            const confirmed = confirm(`Sicherung wiederherstellen:\n\n• ${devCount} Geräte\n• ${sessCount} Trainingseinheiten\n\nMöchten Sie diese Daten jetzt importieren? Vorhandene Einträge mit übereinstimmender ID werden aktualisiert.`);
+            if (!confirmed) return;
+
+            if (data.devices && data.devices.length > 0) {
+                await db.devices.bulkPut(data.devices);
+            }
+            if (data.sessions && data.sessions.length > 0) {
+                await db.sessions.bulkPut(data.sessions);
+            }
+
+            showToast(`Backup erfolgreich importiert! (${devCount} Geräte, ${sessCount} Trainings) ✅`);
+            await ui.renderAdmin();
+        } catch (err) {
+            console.error('Import error:', err);
+            alert('Fehler beim Importieren: ' + err.message);
+        }
     }
 
     // --- Export Logic ---

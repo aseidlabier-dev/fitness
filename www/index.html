@@ -4,6 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Fitness</title>
+    <!-- Theme initialisation to prevent flash -->
+    <script>
+        (function() {
+            const savedTheme = localStorage.getItem('fitness_theme') || 'dark';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+        })();
+    </script>
     <!-- PWA Basic -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -20,7 +27,13 @@
 <body>
     <div id="app">
         <header>
-            <h1 id="page-title">Fitness</h1>
+            <div class="header-bar">
+                <div class="header-spacer"></div>
+                <h1 id="page-title">Fitness</h1>
+                <button id="theme-toggle-btn" class="theme-toggle-btn" type="button" title="Design wechseln (Hell/Dunkel)" aria-label="Design umschalten">
+                    <span id="theme-icon">☀️</span>
+                </button>
+            </div>
             <nav id="main-nav">
                 <button class="nav-btn" data-page="home">🏠</button>
                 <button class="nav-btn" data-page="training">🏋️ Heute</button>

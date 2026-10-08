@@ -1,5 +1,6 @@
-/* Fitness App - Dark Theme Styling */
+/* Fitness App - Dual Theme Styling (Dark & Light) */
 :root {
+    color-scheme: dark;
     --bg-dark: #121212;
     --surface-dark: #1e1e1e;
     --surface-light: #2a2a2a;
@@ -9,11 +10,39 @@
     --text-sub: #a0a0a0;
     --accent-grey: #333333;
     --border-subtle: #383838;
+    --card-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
     --danger: #cf6679;
     --success: #03dac6;
     --warning: #ffb74d;
     --footer-bg: #ffffff;
     --footer-text: #333333;
+    --item-bg: rgba(255, 255, 255, 0.03);
+    --item-hover: rgba(255, 255, 255, 0.06);
+    --input-bg: #121212;
+    --session-card-bg: linear-gradient(145deg, rgba(0, 170, 255, 0.08), rgba(0, 0, 0, 0.25));
+}
+
+[data-theme="light"] {
+    color-scheme: light;
+    --bg-dark: #f1f5f9;
+    --surface-dark: #ffffff;
+    --surface-light: #e2e8f0;
+    --primary: #0284c7;
+    --primary-glow: rgba(2, 132, 199, 0.2);
+    --text-main: #0f172a;
+    --text-sub: #5c6779;
+    --accent-grey: #e2e8f0;
+    --border-subtle: #cbd5e1;
+    --card-shadow: 0 4px 14px rgba(0, 0, 0, 0.06);
+    --danger: #dc2626;
+    --success: #059669;
+    --warning: #d97706;
+    --footer-bg: #ffffff;
+    --footer-text: #333333;
+    --item-bg: #f8fafc;
+    --item-hover: #edf2f7;
+    --input-bg: #ffffff;
+    --session-card-bg: linear-gradient(145deg, rgba(2, 132, 199, 0.06), #f8fafc);
 }
 
 * {
@@ -29,6 +58,7 @@ body {
     line-height: 1.6;
     -webkit-tap-highlight-color: transparent;
     overflow-x: hidden;
+    transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 #app {
@@ -39,19 +69,63 @@ body {
 
 header {
     background-color: var(--surface-dark);
-    padding: 16px 15px;
-    border-bottom: 1px solid var(--accent-grey);
+    padding: 12px 15px;
+    border-bottom: 1px solid var(--border-subtle);
     position: sticky;
     top: 0;
     z-index: 100;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
 }
 
-h1 {
+.header-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.header-bar h1 {
     font-size: 1.5rem;
     font-weight: 600;
-    margin-bottom: 12px;
+    margin-bottom: 0;
     text-align: center;
     letter-spacing: 0.5px;
+    flex-grow: 1;
+}
+
+.header-spacer {
+    width: 38px;
+    height: 38px;
+    flex-shrink: 0;
+}
+
+.theme-toggle-btn {
+    background: var(--surface-light);
+    border: 1px solid var(--border-subtle);
+    color: var(--text-main);
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.15rem;
+    transition: transform 0.15s ease, background-color 0.2s ease, border-color 0.2s ease;
+    flex-shrink: 0;
+    user-select: none;
+}
+
+.theme-toggle-btn:hover {
+    border-color: var(--primary);
+    transform: rotate(15deg) scale(1.05);
+}
+
+.theme-toggle-btn:active {
+    transform: scale(0.92);
 }
 
 nav#main-nav {
@@ -124,9 +198,10 @@ main {
     flex-direction: column;
     align-items: center;
     gap: 12px;
-    transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+    transition: transform 0.15s ease, border-color 0.15s ease, background-color 0.15s ease;
     min-height: 120px;
     justify-content: center;
+    box-shadow: var(--card-shadow);
 }
 
 .hero-btn:active {
@@ -150,6 +225,7 @@ footer {
     color: var(--footer-text);
     padding: 12px 16px;
     margin-top: auto;
+    border-top: 1px solid rgba(0, 0, 0, 0.06);
 }
 
 .footer-content {
@@ -179,7 +255,8 @@ footer {
     padding: 18px;
     margin-bottom: 18px;
     border: 1px solid var(--border-subtle);
-    box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+    box-shadow: var(--card-shadow);
+    transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .title-row {
@@ -187,6 +264,8 @@ footer {
     justify-content: space-between;
     align-items: center;
     margin-bottom: 16px;
+    flex-wrap: wrap;
+    gap: 10px;
 }
 
 .section-title-row {
@@ -264,14 +343,14 @@ label {
 input, select, textarea {
     width: 100%;
     padding: 12px 14px;
-    background-color: var(--bg-dark);
+    background-color: var(--input-bg);
     border: 1px solid var(--border-subtle);
     border-radius: 10px;
     color: var(--text-main);
     margin-bottom: 14px;
     font-size: 1rem;
     min-height: 46px;
-    transition: border-color 0.15s;
+    transition: border-color 0.15s, background-color 0.2s;
 }
 
 input:focus, select:focus, textarea:focus {
@@ -318,7 +397,7 @@ input:focus, select:focus, textarea:focus {
     text-align: center;
     font-size: 1.25rem;
     font-weight: 700;
-    color: #ffffff;
+    color: var(--text-main);
     letter-spacing: 0.5px;
 }
 
@@ -338,7 +417,7 @@ input:focus, select:focus, textarea:focus {
 }
 
 .increase-row {
-    background: rgba(255, 255, 255, 0.03);
+    background: var(--item-bg);
     border: 1px solid var(--border-subtle);
     border-radius: 12px;
     padding: 10px 12px;
@@ -383,7 +462,7 @@ input:focus, select:focus, textarea:focus {
 
 /* Session Info Box (Letztes Training) */
 .session-info-card {
-    background: linear-gradient(145deg, rgba(0, 170, 255, 0.08), rgba(0, 0, 0, 0.25));
+    background: var(--session-card-bg);
     border: 1.5px solid var(--primary);
     position: relative;
     overflow: hidden;
@@ -423,10 +502,10 @@ input:focus, select:focus, textarea:focus {
 }
 
 .info-item {
-    background: rgba(255, 255, 255, 0.04);
+    background: var(--item-bg);
     padding: 8px 12px;
     border-radius: 8px;
-    border: 1px solid rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--border-subtle);
 }
 
 .info-label {
@@ -474,7 +553,7 @@ input:focus, select:focus, textarea:focus {
 
 /* Entry item in lists */
 .entry-card {
-    background: rgba(255, 255, 255, 0.02);
+    background: var(--item-bg);
     border: 1px solid var(--border-subtle);
     border-radius: 12px;
     padding: 14px;
@@ -483,10 +562,11 @@ input:focus, select:focus, textarea:focus {
     justify-content: space-between;
     align-items: center;
     gap: 12px;
+    transition: background-color 0.15s ease;
 }
 
 .entry-card:hover {
-    background: rgba(255, 255, 255, 0.04);
+    background: var(--item-hover);
 }
 
 .entry-main-info {
@@ -535,10 +615,10 @@ input:focus, select:focus, textarea:focus {
 }
 
 .toast {
-    background: #1e1e1e;
-    color: #ffffff;
+    background: var(--surface-dark);
+    color: var(--text-main);
     border: 1px solid var(--primary);
-    box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+    box-shadow: var(--card-shadow);
     padding: 12px 22px;
     border-radius: 10px;
     font-weight: 600;
@@ -558,7 +638,7 @@ input:focus, select:focus, textarea:focus {
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(0, 0, 0, 0.8);
+    background-color: rgba(0, 0, 0, 0.7);
     display: flex;
     justify-content: center;
     align-items: center;
@@ -572,9 +652,12 @@ input:focus, select:focus, textarea:focus {
     max-width: 500px;
     border-radius: 20px;
     padding: 22px;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
     border: 1px solid var(--border-subtle);
     animation: modalSlide 0.25s ease;
+    color: var(--text-main);
+    max-height: 90vh;
+    overflow-y: auto;
 }
 
 @keyframes modalSlide {

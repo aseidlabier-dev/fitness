@@ -1,4 +1,4 @@
-name: Android APK bauen
+name: Fitness Android APK bauen
 
 on:
   push:
@@ -20,7 +20,7 @@ jobs:
       - name: Code auschecken
         uses: actions/checkout@v4
 
-      # 2. Node.js einrichten
+      # 2. Node.js 20 einrichten
       - name: Node.js 20 einrichten
         uses: actions/setup-node@v4
         with:
@@ -54,6 +54,7 @@ jobs:
             "platforms;android-34" \
             "build-tools;34.0.0" \
             "platform-tools" || true
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
           echo "Android SDK bereit."
 
       # 7. Android-Plattform zu Capacitor hinzufuegen
@@ -64,11 +65,48 @@ jobs:
       - name: Capacitor synchronisieren
         run: npx cap sync android
 
-      # 9. Ausfuehrungsrechte fuer Gradle setzen
-      - name: Gradle ausfuehrbar machen
-        run: chmod +x android/gradlew
+      # 9. Eigenes App-Icon (icon.png) in alle Android-Aufloesungen einbinden
+      - name: Eigenes App-Icon einbinden
+        run: |
+          python3 -c '
+          import os
+          from PIL import Image
 
-      # 10. Debug-APK bauen
+          icon_src = "www/icon.png"
+          if os.path.exists(icon_src):
+              im = Image.open(icon_src).convert("RGBA")
+              sizes = {
+                  "mipmap-mdpi": (48, 108),
+                  "mipmap-hdpi": (72, 162),
+                  "mipmap-xhdpi": (96, 216),
+                  "mipmap-xxhdpi": (144, 324),
+                  "mipmap-xxxhdpi": (192, 432),
+              }
+              for folder, (size, fg_size) in sizes.items():
+                  res_dir = os.path.join("android/app/src/main/res", folder)
+                  os.makedirs(res_dir, exist_ok=True)
+                  icon_resized = im.resize((size, size), Image.Resampling.LANCZOS)
+                  icon_resized.save(os.path.join(res_dir, "ic_launcher.png"))
+                  icon_resized.save(os.path.join(res_dir, "ic_launcher_round.png"))
+                  fg = Image.new("RGBA", (fg_size, fg_size), (0, 0, 0, 0))
+                  inner_size = int(fg_size * 0.72)
+                  inner_im = im.resize((inner_size, inner_size), Image.Resampling.LANCZOS)
+                  offset = (fg_size - inner_size) // 2
+                  fg.paste(inner_im, (offset, offset), inner_im)
+                  fg.save(os.path.join(res_dir, "ic_launcher_foreground.png"))
+              print("✅ Eigenes App-Icon (icon.png) erfolgreich in alle Android-Aufloesungen integriert!")
+          else:
+              print("⚠️ www/icon.png nicht gefunden!")
+          '
+
+      # 10. Ausfuehrungsrechte fuer Gradle & local.properties setzen
+      - name: Gradle ausfuehrbar machen
+        run: |
+          cd android
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
+          chmod +x gradlew
+
+      # 11. Debug-APK bauen
       - name: Debug-APK bauen
         run: |
           cd android
@@ -76,7 +114,7 @@ jobs:
         env:
           ANDROID_HOME: ${{ env.ANDROID_HOME }}
 
-      # 11. APK als Download-Artefakt bereitstellen (30 Tage verfuegbar)
+      # 12. APK als Download-Artefakt bereitstellen (30 Tage verfuegbar)
       - name: APK als Artefakt hochladen
         uses: actions/upload-artifact@v4
         with:
@@ -84,7 +122,7 @@ jobs:
           path: android/app/build/outputs/apk/debug/app-debug.apk
           retention-days: 30
 
-      # 12. Zusammenfassung ausgeben
+      # 13. Zusammenfassung ausgeben
       - name: Build-Zusammenfassung
         run: |
           APK_PATH="android/app/build/outputs/apk/debug/app-debug.apk"
