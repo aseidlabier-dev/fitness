@@ -67,36 +67,40 @@ jobs:
 
       # 9. Eigenes App-Icon (icon.png) in alle Android-Aufloesungen einbinden
       - name: Eigenes App-Icon einbinden
+        continue-on-error: true
         run: |
+          python3 -m pip install Pillow --break-system-packages 2>/dev/null || python3 -m pip install Pillow || sudo apt-get install -y python3-pil 2>/dev/null || true
           python3 -c '
           import os
-          from PIL import Image
-
-          icon_src = "www/icon.png"
-          if os.path.exists(icon_src):
-              im = Image.open(icon_src).convert("RGBA")
-              sizes = {
-                  "mipmap-mdpi": (48, 108),
-                  "mipmap-hdpi": (72, 162),
-                  "mipmap-xhdpi": (96, 216),
-                  "mipmap-xxhdpi": (144, 324),
-                  "mipmap-xxxhdpi": (192, 432),
-              }
-              for folder, (size, fg_size) in sizes.items():
-                  res_dir = os.path.join("android/app/src/main/res", folder)
-                  os.makedirs(res_dir, exist_ok=True)
-                  icon_resized = im.resize((size, size), Image.Resampling.LANCZOS)
-                  icon_resized.save(os.path.join(res_dir, "ic_launcher.png"))
-                  icon_resized.save(os.path.join(res_dir, "ic_launcher_round.png"))
-                  fg = Image.new("RGBA", (fg_size, fg_size), (0, 0, 0, 0))
-                  inner_size = int(fg_size * 0.72)
-                  inner_im = im.resize((inner_size, inner_size), Image.Resampling.LANCZOS)
-                  offset = (fg_size - inner_size) // 2
-                  fg.paste(inner_im, (offset, offset), inner_im)
-                  fg.save(os.path.join(res_dir, "ic_launcher_foreground.png"))
-              print("✅ Eigenes App-Icon (icon.png) erfolgreich in alle Android-Aufloesungen integriert!")
-          else:
-              print("⚠️ www/icon.png nicht gefunden!")
+          try:
+              from PIL import Image
+              icon_src = "www/icon.png"
+              if os.path.exists(icon_src):
+                  im = Image.open(icon_src).convert("RGBA")
+                  sizes = {
+                      "mipmap-mdpi": (48, 108),
+                      "mipmap-hdpi": (72, 162),
+                      "mipmap-xhdpi": (96, 216),
+                      "mipmap-xxhdpi": (144, 324),
+                      "mipmap-xxxhdpi": (192, 432),
+                  }
+                  for folder, (size, fg_size) in sizes.items():
+                      res_dir = os.path.join("android/app/src/main/res", folder)
+                      os.makedirs(res_dir, exist_ok=True)
+                      icon_resized = im.resize((size, size), Image.Resampling.LANCZOS)
+                      icon_resized.save(os.path.join(res_dir, "ic_launcher.png"))
+                      icon_resized.save(os.path.join(res_dir, "ic_launcher_round.png"))
+                      fg = Image.new("RGBA", (fg_size, fg_size), (0, 0, 0, 0))
+                      inner_size = int(fg_size * 0.72)
+                      inner_im = im.resize((inner_size, inner_size), Image.Resampling.LANCZOS)
+                      offset = (fg_size - inner_size) // 2
+                      fg.paste(inner_im, (offset, offset), inner_im)
+                      fg.save(os.path.join(res_dir, "ic_launcher_foreground.png"))
+                  print("✅ Eigenes App-Icon erfolgreich in alle Android-Aufloesungen integriert!")
+              else:
+                  print("⚠️ www/icon.png nicht gefunden!")
+          except Exception as e:
+              print(f"⚠️ Icon-Generierung uebersprungen: {e}")
           '
 
       # 10. Ausfuehrungsrechte fuer Gradle & local.properties setzen
